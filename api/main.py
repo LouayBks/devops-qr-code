@@ -27,22 +27,26 @@ app.add_middleware(
 s3 = boto3.client(
     's3',
     aws_access_key_id= os.getenv("AWS_ACCESS_KEY"),
-    aws_secret_access_key= os.getenv("AWS_SECRET_KEY"))
+    aws_secret_access_key= os.getenv("AWS_SECRET_KEY"),
+    region_name='eu-west-3')
 
-bucket_name = 'YOUR_BUCKET_NAME' # Add your bucket name here
+bucket_name = 'capstone-qr-code-bucket-17-03-2025' # Add your bucket name here
 
 @app.post("/generate-qr/")
 async def generate_qr(url: str):
     # Generate QR Code
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(url)
-    qr.make(fit=True)
-
+    try:
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(url)
+        qr.make(fit=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)+"QR code generation failed")
+    
     img = qr.make_image(fill_color="black", back_color="white")
     
     # Save QR Code to BytesIO object
@@ -55,11 +59,12 @@ async def generate_qr(url: str):
 
     try:
         # Upload to S3
-        s3.put_object(Bucket=bucket_name, Key=file_name, Body=img_byte_arr, ContentType='image/png', ACL='public-read')
+        s3.put_object(Bucket=bucket_name, Key=file_name, Body=img_byte_arr, ContentType='image/png')
         
         # Generate the S3 URL
         s3_url = f"https://{bucket_name}.s3.amazonaws.com/{file_name}"
         return {"qr_code_url": s3_url}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"S3 Upload failed: {e}")
