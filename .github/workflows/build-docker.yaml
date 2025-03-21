@@ -12,4 +12,5 @@ jobs:
       run: docker build ./api/ -t loubks/capstone-qr-api:latest
     - name: push image to docker hub
       run:
+        docker login -u loubks -p ${{ secrets.GH_DOCKER_TOKEN }}
         docker push loubks/capstone-qr-api:latest
